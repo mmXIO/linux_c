@@ -1,0 +1,58 @@
+#!/bin/bash
+#Description:使用Nmap的端口扫描功能监控HTTP端口
+ip=192.168.122.1
+mail_to=root@localhost
+
+nmap -n -sS -p80 192.168.122.1 | grep -q "^80/tcp open"
+if [ $? -eq 0 ];then
+  echo "http service is running on $ip" | mail -s http_status_OK $mail_to
+else
+  echo "http service is stoped on $ip" | mail -s http_status_errot $mail_to
+fi
+
+
+#-----------------------------------------------------------------------------------#
+#Description:使用cURL访问具体的HTTP页面，检测HTTP状态码
+
+#cURL选项说明
+#-m设置超时时间；-s设置静默连接
+#-o下载数据另存为;-w返回附加信息，HTTP状态码
+
+url=http://192.168.122.1/index.html
+date=$(date +"%Y-%m-%d %H:%M:%S")
+status_code=$(curl -m 3 -s -o /dev/null -w %{http_code} $url)
+mail_to="root@localhost"
+mail_subject="http_warning"
+
+#使用<<-重定向可以忽略Tab键缩进的内容，代码的可读性更好
+if [ $status_code -ne 200 ];then
+  mail -s $mail_subject $mail_to
+  检测时间为:$date
+  $url页面异常,服务器返回状态码:${status_code}
+  请尽快排查异常
+  EOF
+else
+  cat >> /var/log/http_check.log
+  $date "$url 页面访问正常"
+  EOF
+fi
+
+
+#--------------------------------------------------------------------------#
+#Description:根据数据的Hash值监控网站数据是否被篡改
+
+url="http://192.168.122.1/index.html"
+date=$(date +"%Y-%m-%d %H:%M:%S")
+
+source_bash="e3eb0a1df437f3f97a64aca5952c8ea0"
+url_hash=$(curl -s $url |md5sum | cut -d ' ' -f1)
+if [ "$url_hash" != "$source_hash" ];then
+  mail -s http_Warning root@localhost
+  数据完整性校验失败,$url,页面数据被篡改
+  请尽快排查异常
+  EOF
+else
+  cat >> /var/log/http_check.log
+  $date "$url,数据完整性校验正常"
+  EOF
+fi
