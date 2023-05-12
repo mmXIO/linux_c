@@ -36,5 +36,5 @@ do
     echo "" >&12
   }&
 done
-wqit
+wait
 rm -rf $pipefile
